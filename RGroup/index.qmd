@@ -1,0 +1,11 @@
+---
+title: "R User Group"
+format: html
+editor: visual
+---
+
+## The EPLS R User Group
+
+This FSU R user group is open to faculty, students, and members of the FSU community broadly who are interested in improving their skills with the R programming language.
+
+Sessions happen in person and via Zoom

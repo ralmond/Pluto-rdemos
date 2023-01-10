@@ -1,0 +1,20 @@
+---
+title: "Physics Playground"
+format: html
+editor: visual
+---
+
+# Home Page for Physics Playground Research
+
+## Florida State University School Study
+
+Nov 28th -- Dec 3rd.
+
+[StudyLink](Study.Rmd) 
+
+## Demo Version of the Game:
+
+[Game Launcher](http://35.196.157.53/pp/game/demo.html)
+
+-   **Username:** demo2
+-   **Password:** demo2pass

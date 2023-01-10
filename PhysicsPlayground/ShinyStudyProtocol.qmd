@@ -1,0 +1,38 @@
+---
+title: "Automating a Study Protocol with R and R Shiny"
+author: "Russell Almond"
+format: html
+editor: visual
+---
+
+# Introduction
+
+## Physics Playground Study
+
+# Building an ID Roster
+
+## Checksums
+
+## Loading the Roster in R
+
+# Conditional Text and HTML
+
+## Validating the ID
+
+## Conditional Texts and Links
+
+## Link Parameters -- Passing the ID
+
+## Tabs for different study days
+
+# Using Names and Encryption
+
+## Encryption library
+
+## Searching Encrypted fields
+
+## Sensitive Data
+
+# Final Thoughts
+
+## URL shorteners

@@ -1,0 +1,298 @@
+---
+title: Physics Playground FSUS Study Protocol
+author: "Russell Almond"
+date: "11/30/2022"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r libs, echo=FALSE, include=FALSE}
+library(dplyr)
+library(shiny)
+library(shinyjs)
+library(googlesheets4)
+
+gameLink <- "http://35.196.157.53/pp/game/demo.html"
+
+surveys <- c(ECT="https://fsu.qualtrics.com/jfe/form/SV_3BKybDb3f2v4QU6",
+             POT="https://fsu.qualtrics.com/jfe/form/SV_1MotNHu1dPEAJnM",
+             PRE="https://fsu.qualtrics.com/jfe/form/SV_bkALP80IYWnEgkK")
+QID = c(PRE="QID1",POT="QID4",ECT="QID4")
+# ?Q_PopulateResponse={"QID1":"G999"} PRE
+# POT QID4
+# ECT QID4
+surveyURL <- function(id,group) {
+  paste(surveys[group],'?Q_PopulateResponse={"',QID[group],'":"',id,'"}',
+        sep="")
+}
+
+
+  
+
+TestSurveys <- c(ECT="https://pluto.coe.fsu.edu/",
+                 POT="https://education.fsu.edu/measurement-and-statistics/")
+```
+
+```{r, include=FALSE}
+gs4_deauth()
+subjectList <- read_sheet("https://docs.google.com/spreadsheets/d/1BPkBMEE5DOtZ3MBt5C1ab4djddAOhUyAIPMiR4WRhBQ/edit?usp=sharing")
+#subjectList
+```
+
+Thanks for participating in the study. If you have any questions, please ask the member of the Physics Playground research team who is assigned to your class.
+
+Start by entering your study ID, which is on your definitions sheet. This will load your personalized links.
+
+```{r Panel, echo=FALSE}
+inputPanel(textInput("sid","Please enter your study ID:"))
+
+sid <- reactive(input$sid)
+spass <- reactive(paste(sid(),"pass",sep=""))
+unum <- reactive(ifelse(sid()=="",NULL,
+                        match(sid(),subjectList$StudyID)[1]))
+
+renderUI({
+  if(sid()=="") p()
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Unrecognized ID, talk to your study leader.")
+    else
+      p("That is a valid ID.  Thank you.")
+  }
+})
+  
+```
+
+## Daily Instructions {.tabset .tabset-pill}
+
+### Monday `r ifelse(weekdays(Sys.Date())=="Monday","{.active}","")`
+
+1.  Consent and Assent Forms
+
+Make sure that you have signed the assent form and that your parents have signed the consent form. If you need another copy, ask the researcher for another copy.
+
+2.  Pretest
+
+The pretest can be found at the following link:
+
+```{r pretest, echo=FALSE}
+renderUI({
+  if(sid()=="") p("Please enter your study ID to get your link.")
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your link.")
+    else
+      p(a(href=surveyURL(sid(),"PRE"),target="_blank","Pretest Link"))
+  }
+})
+
+#[Pretest](https://fsu.qualtrics.com/jfe/form/SV_bkALP80IYWnEgkK)
+```
+Enter your ID (`r renderText(sid())`) and don't forget to hit `Done` when you are finished.
+
+Your grades on the pretest, mid-test and post-test will not be shared with your teacher, but please do your best to answer the questions so we can get a valid measure of your ability.
+
+3.  Definitions
+
+When you have finished the pretest surveys, you can start on the definitions worksheet. This is a handout. Complete the definitions on the sheet. When you are done, the study leader will go over the answers with the whole class.
+
+Put your name on this sheet.  You will hand it in each day and get it back the next day so you don't need to remember your ID.
+
+4.  Game (Tutorial Levels)
+
+Today you will play through the tutorial levels.  Follow the link below and use the username and password provides to log in.
+
+There is embedded video in the game, so you will need headphones.  Please play the game levels in order (although if you are really stuck, you can move on to the next level).
+
+```{r PlayMonday, echo=FALSE}
+renderUI({
+  if(sid()=="") p()
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your username and password.")
+    else
+      p(a(href=gameLink,"Game Link",target="_blank"),br(),
+        "Game Username ", tags$b(subjectList[unum(),"ID1"]),
+        "Password: ",
+        tags$b(paste(subjectList[unum(),"ID1"],"pass",sep="")))
+  }
+})
+
+```
+
+
+5.  Hand in your definition sheet
+
+Also if you are not using your chromebook today, make sure that the headphone, charger and mouse are all next to the laptop, ready for the next class (or to be put away after the last class of the day).
+
+### Tuesday `r ifelse(weekdays(Sys.Date())=="Tuesday","{.active}","")`
+
+1.  Pick up your definition sheet
+
+2.  Play Game
+
+Today you will have all class period to play the game.
+
+There is embedded video in the game, so you will need headphones.  Please play the game levels in order (although if you are really stuck, you can move on to the next level).
+
+
+```{r PlayTuesday}
+renderUI({
+  if(sid()=="") p()
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your username and password.")
+    else
+      p(a(href=gameLink,target="_blank","Game Link"),br(),
+        "Game Username: ", tags$b(subjectList[unum(),"ID1"]),
+        "Password: ",
+        tags$b(paste(subjectList[unum(),"ID1"],"pass",sep="")))
+  }
+})
+
+```
+3.  Hand in your definition sheet
+
+Make sure that the headphone, charger and mouse are all next to the laptop, ready for the next class (or to be put away after the last class of the day).
+
+### Wednesday `r ifelse(weekdays(Sys.Date())=="Wednesday","{.active}","")`
+
+1.  Pick up your definition sheet
+
+2.  Play Game
+
+The first part of the class will play the game, but the last 20 minutes will be fore a mid-study test.
+
+There is embedded video in the game, so you will need headphones.  Please play the game levels in order (although if you are really stuck, you can move on to the next level).
+
+
+```{r PlayWed, echo=FALSE}
+renderUI({
+  if(sid()=="") p("Please enter your study ID above to get your game link.")
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your game link.")
+    else
+      p(a(href=gameLink,"Game Link",target="_blank"),br(),
+        "Game Username ", tags$b(subjectList[unum(),"ID1"]),
+        "Password: ",tags$b(paste(subjectList[unum(),"ID1"],"pass",sep="")))
+  }
+})
+
+```
+
+3.  Midtest (20 min)
+
+Enter your ID (`r renderText(sid())`) and don't forget to hit `Done` when you are finished.  Once again, please do your best to help us get a valid measure.
+
+```{r Midtest, echo=FALSE}
+renderUI({
+  if(sid()=="") p("Please enter your study ID above to get your survey link.")
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your survey link.")
+    else
+      a(href=surveyURL(sid(),pull(subjectList,"Midtest")[unum()]),
+          "Midweek Survey")
+  }
+})
+
+```
+
+
+4.  Hand in your definition sheet
+Make sure that the headphone, charger and mouse are all next to the laptop, ready for the next class (or to be put away after the last class of the day).
+
+### Thursday `r ifelse(weekdays(Sys.Date())=="Thursday","{.active}","")`
+
+1.  Pick up your definition sheet
+
+2.  Play Game
+
+Again, you will have all class period to play the game.  
+_Note that you will have a different game username today._  This time you will play the game levels you didn't play in the previous two days.
+
+There is embedded video in the game, so you will need headphones.  Please play the game levels in order (although if you are really stuck, you can move on to the next level).
+
+
+```{r PlayThurs, echo=FALSE}
+renderUI({
+  if(sid()=="") p("Please enter your study ID above to get your game link.")
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your game link.")
+    else
+      p(a(href=gameLink,"Game Link",target="_blank"),br(),
+        "Game ID: ", tags$b(subjectList[unum(),"ID2"]),
+        "Password: ",
+        tags$b(paste(subjectList[unum(),"ID2"],"pass",sep="")))
+  }
+})
+
+```
+
+3.  Hand in your definition sheet
+Make sure that the headphone, charger and mouse are all next to the laptop, ready for the next class (or to be put away after the last class of the day).
+
+### Friday `r ifelse(weekdays(Sys.Date())=="Friday","{.active}","")`
+
+1.  Pick up your definition sheet
+
+2.  Play Game
+
+Continue playing the game.  Note that the last 20 minutes of class time will be reserved for the post-test.  You will use the same username you used yesterday.
+
+There is embedded video in the game, so you will need headphones.  Please play the game levels in order (although if you are really stuck, you can move on to the next level).
+
+```{r PlayFri, echo=FALSE}
+renderUI({
+  if(sid()=="") p("Please enter your study ID above to get your game link.")
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your game link.")
+    else
+      p(a(href=gameLink,"Game Link",target="_blank"),br(),
+        "Game ID: ", tags$b(subjectList[unum(),"ID2"]),
+        "Password: ",
+        tags$b(paste(subjectList[unum(),"ID2"],"pass",sep="")))
+  }
+})
+
+```
+
+3.  Post study test (20 min)
+
+Please take the post study test.  Enter your Study ID (the one starting with a letter, on your definition sheet) to start.  Please do your best to answer each question.  Enter your ID (`r renderText(sid())`) and don't forget to hit `Done` when you are finished.
+```{r Posttest, echo=FALSE}
+renderUI({
+  if(sid()=="") p("Please enter your study ID above to get your survey link.")
+  else {
+    if (is.na(unum()) || is.null(unum()))
+      p("Please enter your study ID above to get your survey link.")
+    else
+      a(href=surveyURL(sid(),pull(subjectList,"Posttest")[unum()]),
+          "Posttest Survey")
+  }
+})
+
+```
+
+
+4.  Accept our thanks.
+
+Make sure that the headphone, charger and mouse are all next to the laptop, ready for the next class (or to be put away after the last class of the day).
+
+If you want to play the game at home (please wait until tomorrow), you can use the link and password at _https://pluto.coe.fsu.edu/PP/_.  
+
+## Problems and Questions
+
+If you have an immediate question about the study, please talk with the study leader in your classroom.
+
+The principle investigator for this study is Russell Almond.  if you have any questions or concerns, please send him email at [ralmond@fsu.edu](mailto:ralmond@fsu.edu).
+
+At least one of you asked if you can play the game at home.
+Please wait until after Friday; I'll give you a link on Friday's page.

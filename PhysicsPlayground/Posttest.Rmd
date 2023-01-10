@@ -1,0 +1,42 @@
+---
+title: "Posttest"
+author: "Russell Almond"
+date: "2022-12-03"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+```{r libs, echo=FALSE, include=FALSE}
+library(shiny)
+subjectList <- read.csv("https://pluto.coe.fsu.edu/svn/common/rgroup-shiny/PhysicsPlayground/subjectAssigments.csv")
+surveys <- c("https://pluto.coe.fsu.edu/","https://education.fsu.edu/measurement-and-statistics/")
+```
+
+```{r}
+subjectList
+```
+
+
+```{r Panel, echo=FALSE}
+inputPanel(textInput("sid","Please enter your study ID"))
+
+
+
+
+renderUI({
+  if(input$sid=="") p()
+  else {
+    unum <- match(input$sid,subjectList$StudyID)[1]
+    if (is.na(unum))
+      p("Unrecognized ID, talk to your study leader")
+    else
+      a(href=surveys[subjectList[unum,2]],"Posttest link.")
+  }
+})
+  
+```
+
+
