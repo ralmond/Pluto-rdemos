@@ -1,0 +1,35 @@
+---
+title: "EASD:  Ancestral Node EASD"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(shiny)
+library(shinyjs)
+library(PNetica)
+library(googlesheets4)
+```
+
+```{r LoadModel, include=FALSE}
+sess <- RNetica::NeticaSession() # Add the license key here
+RNetica::startSession(sess)
+sheetID <- "https://docs.google.com/spreadsheets/d/1r0h_wPKPa8qQzbpI_JT-T2ic4N8l9oypEG0AeIuaBn8/edit?usp=sharing"
+sheetIDnew <- "1UMBMlebAj8XFnm4ptE3k5V34Lx-I32KYVIvQpr7Paog"
+googlesheets4::gs4_deauth()
+netman <- read_sheet(sheetID,"Nets")
+Nethouse <- PNetica::BNWarehouse(netman,sess)
+nodeman <- read_sheet(sheetID,"Nodes")
+Nodehouse <- PNetica::NNWarehouse(nodeman,sess)
+omega <- as.data.frame(read_sheet(sheetID,"Omega"))
+CM <- WarehouseSupply(Nethouse,"EASD")
+CM1 <- Omega2Pnet(omega,CM,Nodehouse,override=TRUE)
+EASD <- PnetFindNode(CM1,"EASD")
+BuildTable(EASD)
+```
+<style>iframe.shiny-frame{height: 2000px}</style>
+```{r gadget, echo=FALSE}
+gadget1 <- MakeRegressionGadget(EASD)
+shiny::shinyApp(gadget1$ui,gadget1$server,options(height=2000))
+```
