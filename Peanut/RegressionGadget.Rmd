@@ -298,6 +298,7 @@ The betas are set as a list.  This should correspond to the states of
 the node, with the last (smallest value) omitted.
 
 ```{r setBeta}
+PnodeRules(partial3) <- "Compensatory"
 PnodeBetas(partial3)
 PnodeStates(partial3)
 PnodeBetas(partial3) <- list(FullCredit=1.0,PartialCredit=0.0)
@@ -318,6 +319,7 @@ The link scale parameter is the residual standard deviation.  In general, as the
 
 The `PnodeLinkScale` function will set the link scale parameter.
 ```{r linkScale}
+PnodeLink(partial3) <- "normalLink"
 PnodeLinkScale(partial3) <- .5
 ```
 
@@ -329,6 +331,7 @@ This is generally a difficult parameter for experts to work with.
 
 ```{r buildit}
 PnodePriorWeight(partial3) <- 10
+PnodeQ(partial3) <- TRUE
 BuildTable(partial3)
 as.CPF(PnodeProbs(partial3))
 ```
