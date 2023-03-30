@@ -1,0 +1,609 @@
+---
+title: "Exploratory Analysis of Scientific Data Learning Progression"
+author: 
+  - name: "Russell Almond"
+    orcid: 0000-0002-8876-9337
+    email: ralmond@fsu.edu
+    affiliation: "Florida State University"
+  - name: "Duanli Yan"
+    email: dyan@ets.org
+    affiliation: "Educational Testing Service"
+  - name: "Hui Jin"
+    email: hjin@georgiasouthern.edu
+    affiliation: "Georgia Southern University"
+bibliography:  dynamicRefs.bib
+csl:  apa.csl
+format: docx
+---
+
+# Dynamic Bayesian Models for Learning Progressions
+
+This document is a supplement to the chapter "Dynamic Bayesian Models for Learning Progressions." It walks through the construction of the Dynamic Bayesian network model using the Peanut [@Peanut] system to construct the Bayesian network in Netica [@Norsys].
+
+## Installing Necessary R Packages
+
+The installation uses four R packages:
+
+-   `CPTtools` -- A collection of tools for working with Conditional Probability Tables.
+-   `RNetica` -- A binding of the Netica API to R. *Note Bene.* Although the RNetica code is free and open source, the installation process downloads the NeticaⓇ shared library (or DLL) from [Norsys](https://norsys.com). That is subject to the Norsys license agreement.
+-   `Peanut` -- An object-oriented framework for parameterized network.
+-   `PNetica` -- An implementation of the Peanut framework using Netica.
+
+These packages are available at [R Universe](https://ralmond.r-universe.net), as the non-free license for the Netica shared library does not fit with CRAN policies.
+
+The following commands will install the latest version of the package:
+
+```{r}
+#| eval: false
+#| echo: true
+install.packages(c("CPTtools","RNetica","Peanut","PNetica", "googlesheets4"),
+                 repos=c(CRAN="https://cloud.r-project.org/",
+                         ralmond="https://ralmond.r-universe-.net"))
+```
+
+These generally only need to be run once.
+
+Note that NeticaⓇ is a product of Norsys, LLC. (<https://norsys.com/>). It comes in two versions: A GUI version which allows the analyst to interact with a visualization of the network, and an API version which allows the network to be manipulated by the computer. Norsys sells a license code for both versions. RNetica requires the API license, but the GUI may be useful for analysts as well, especially for people learning Bayes nets. (The GUI version is available only for Windows, but Netica runs well under Wine, Crossover, Bottles, and other emulation solutions.)
+
+Although Netica is a paid product, it also comes in a student/demonstration version which runs small networks. That is enough to run this demonstration,so a license key is not needed.
+
+The following code loads the R packages and starts the link for the Netica API. This needs to be run at the start of every session.
+
+```{r}
+#| echo: true
+#| include: false
+#| context: setup
+library(PNetica)
+library(Peanut)
+sess <- RNetica::NeticaSession() # Add the license key here
+RNetica::startSession(sess)
+```
+
+As the example network data is stored in a google sheet, we will also need the `googlesheets4` library. The `knitr` package provides table formatting.
+
+```{r}
+#| echo: true
+#| include: false
+#| context: setup
+library(googlesheets4)
+```
+
+## Defining Networks
+
+After some experience using various graphical tools, -@matrix2 found that the easiest way to work with experts in eliciting a Bayesian network structure is to use a spreadsheet. The spreadsheet for the EASD Progression model is available through [Google Sheets](https://docs.google.com/spreadsheets/d/1UMBMlebAj8XFnm4ptE3k5V34Lx-I32KYVIvQpr7Paog/edit?usp=sharing).
+
+Note that this sheet has six tabs which the analyst must complete to specify the model.
+
+1.  **Nets**---describes the competency and evidence models.
+
+2.  **Nodes**---describes the nodes and their states.
+
+3.  **Q**---describes the distribution of variables representing observable indicators that appear in the evidence models.
+
+4.  **Omega**---describes the relationship and distribution of the competency model variables.
+
+5.  **Statistics**---describes what values will be written out.
+
+6.  **Growth**---describes the growth models.
+
+Note that there is a seventh tab **Dropdowns**. This is used as part of the network validation, and doesn't need to be filled out by the analyst.
+
+## Nets
+
+```{r netManifest}
+#| context: setup
+#| echo: true
+#| include: false
+sheetID <- "https://docs.google.com/spreadsheets/d/1r0h_wPKPa8qQzbpI_JT-T2ic4N8l9oypEG0AeIuaBn8/edit?usp=sharing"
+sheetIDnew <- "1UMBMlebAj8XFnm4ptE3k5V34Lx-I32KYVIvQpr7Paog"
+googlesheets4::gs4_deauth()
+netman <- read_sheet(sheetID,"Nets")
+```
+
+```{r}
+#| label:  tbl-nets
+#| tbl-cap: "Nets Tab"
+knitr::kable(netman)
+```
+
+This table is the easiest to understand. Each row represents a Bayes net model, either a comptency model or an evidence model. The columns have the following meaning.
+
+-   `Name` --- the identifier of the network. Note that projects using Netica will need to follow the Netica syntax for identifiers, which is the identifier, must start with a letter and may contain only letters, numbers or underscores (`_`). It is also limited to 32 characters.
+-   `Title` --- A longer version of the name, with no character restrictions.
+-   `Hub` --- For evidence models, this is the name of the corresponding competency model; for competency models, leave if blank.
+-   `Pathname` --- The name of the file for storing the network. This defaults to the name plus the `.dne` extension, which is Netica's extension for the text representation of a Bayes net.
+-   `Description` --- A place for user comments.
+
+The `Peanut` package works by creating a `Warehouse` for the networks. The idea is that if the network has already been created, then the `Net Warehouse` will go ahead and build it using the specifications in the manifest; which is the `netman` file.
+
+```{r BuildNetWarehouse}
+#| context: setup
+#| echo: true
+#| include: false
+Nethouse <- PNetica::BNWarehouse(netman,sess)
+```
+
+Note here the use of the `PNetica` package and the `RNetica::Session` object, `sess`. This is one of two places in which the explicit dependence on Netica is required. (The other is the creation of the Node Warehouse in the next session). The rest of the commands use function calls in the `Peanut` or `CPTtools` frameworks, which are agnostic as to the Bayes net engine used (although so far, only the `PNetica` implementation exists).
+
+## Nodes
+
+The next spreadsheet defines the nodes. There are two things which are important to note about the nodes. The first is that each network defines its own namespace. Thus, the node `Relationships` in the `DK1_SP2` and in the `DK2_SP2`. Thus, the variable is identified by the first two columns in the spreadsheet.
+
+The second thing of note is that there are some information which is specific to the possible states of the node. Thus, if the node has 3 possible states, then the `states` column will be a vector of values. This is expressed using the notation `[state1,state2,state3]`
+
+```{r LoadVariableManifest}
+#| include: false
+#| echo: false
+nodemanAlt <- read_sheet(sheetIDnew,"Nodes")
+```
+
+```{r nodeManifest}
+#| label:  tbl-nodes
+#| tbl-cap: "Nodes Tab"
+knitr::kable(nodemanAlt)
+```
+
+### Node Primary Key
+
+The following columns are present in the spreadsheet:
+
+-   `Model` --- The name of the network, this should appear in the `Name` column of the `Nets` sheet.
+
+-   `NodeName` --- The name of the node. This should correspond to the Netica naming rules.
+
+Note that the `(Model, NodeName)` ordered pair is the primary key for the table.
+
+### Node-level properties
+
+The following values are assigned at the node level.
+
+-   `ModelHub` --- The name of the proficiency/competency model. (This information is redundant with that in the `Nets` sheet.
+
+-   `NodeTitle` --- A longer name for the node which does not need to conform to variable naming rules.
+
+-   `NodeDescription` --- Documentation for the node.
+
+-   `Continuous` --- A logical value. If `FALSE`, then the node has a number of discrete values. If `TRUE`, then the node is a discritized version of an underlying continuous value.
+
+-   `Nstates` --- The number of states of the node. If the node is discrete (`Continuous=FALSE`), then this is the number of possible values. If the node is continuous, then this is the number of states the node will be partitioned into.
+
+Note that most of the state level value must be vectors of the same length as `Nstates` for that row.
+
+### State-level descriptors
+
+-   `StateName` --- An identifier for the state. Must follow variable rules.
+
+-   `StateTitle` --- A longer descriptor which doesn't need to follow varaible rules.
+
+-   `StateDescription` --- Documentation for the state.
+
+-   `StateValue` --- This is used in both the CPT construction algorithms and in calculating expected values and varainces for nodes. The best practice here is to map these values to quantiles of the normal distribution (@bninea). Note that for three levels these are approximately 1, 0 and -1.
+
+-   `Cuts` --- Only used for continuous nodes. These are the upper and lower cuts for the underlying continuous variable. There should be one more value in the vector than there are states in the node. The continuous variable is chopped into intervals with the given cut points (including the minimum and maximum). Note that `-Inf` and `Inf` are acceptable values.
+
+### Node Warehouse
+
+`Peanut` uses the same Warehouse metaphor to build the nodes. The `Nodes` spreadsheet is the instruction for building the node (if it is not already built).
+
+```{r NodeWarehouse}
+#| context: setup
+#| include: false
+#| echo: true
+## Note, need old format sheet until we update Peanut.
+nodeman <- read_sheet(sheetID,"Nodes")
+Nodehouse <- PNetica::NNWarehouse(nodeman,sess)
+```
+
+This is the last place in which we explicitly reference Netica. The `WarehouseSupply` method on the Net or Node Warehouse returns an object of the abstract type `Peanut::Pnet` or `Peanut::Pnode`, which then supports all of the other operations.
+
+The two warehouses give us the basic definitions of the networks and the nodes. The next step is to describe the relationships among the nodes and the conditional probability tables that are defined.
+
+@matrix2 divides this into two pieces: the $Q$-matrix which describes the relationship between the competency nodes and the observable outcomes(@sec-Q), and the $\Omega$ matrix which describes the relationship among the competency variables (Section @sec-Omega). The dynamic model needs a third component in the growth model (Section @sec-growth).
+
+## Omega {#sec-Omega}
+
+The Omega ($\Omega$) matrix is named for the inverse of the covariance matrix. Is is based on the observation that zero in the inverse covariance matrix leads to a conditional independence assumption (and hence lack of edge) in the graphical model [@dempster1972; @whittaker1990].\
+However, rather than specify the covariance matrix, the approach used in Peanut is to specify the joint distribution of the variable in the competency (proficiency) model through a series of regressions.
+
+### Omega Matrix Structure
+
+The first part of the model is specifying which variables should be predictors (inputs) to the others. In the $\Omega$-matrix (@fig-Omega), the rows represent the variables in their roles as dependent (output) variables and the columns the role as input variables. A check mark indicates that the column variable is a parent of the row variable (an input in its regression).
+
+![Omega Matrix Structure](img/Omega.png){#fig-Omega}
+
+This defines the graphical structure. An edge is placed between the nodes corresponding to the edges. Figure @fig-OmegaGr shows this graph.
+
+```{dot}
+//| label: "fig-OmegaGr"
+//| fig-cap: "Graph of EASD Net"
+digraph EASD {
+  EASD; 
+  CP1; CP2; CP3;
+  DK1; DK2; DK3;
+  EASD -> CP1; EASD -> CP2; EASD -> CP3;
+}
+```
+
+Note that the nodes are ordered (in both rows and columns) so that the parents of a given node always fall earlier in the sequence than the child. With this topological sorting, all of the checked boxes (selected edges) should be in the lower triangle; this will ensure that the model graph has no directed cycles.
+
+```{r loadOmega}
+#| context: setup
+#| include: false
+#| echo: true
+omega <- as.data.frame(read_sheet(sheetID,"Omega"))
+CM <- WarehouseSupply(Nethouse,"EASD")
+CM1 <- Omega2Pnet(omega,CM,Nodehouse,override=TRUE)
+```
+
+### Ancestral Nodes (without parents)
+
+The regression model with no parents is just a normal distribution. The parameters specify the mean and variance of the model.
+
+```{r normal}
+#| eval: false
+EASD <- PnetFindNode(CM1,"EASD")
+gadget1 <- MakeRegressionGadget(EASD)
+shiny::shinyApp(gadget1$ui,gadget1$server, options(height=2000))
+```
+
+An online version of this gadget can be seen at <https://pluto.coe.fsu.edu/rdemos/Peanut/EASD_EASD.Rmd>.
+
+The distribution is discretized, but adjusting mean parameter controls which bars the distribution is concentrated in, and how concentrated it is.
+
+### Competency Variables with one parent.
+
+Here again the `normalLink` is chosen because the parent variable states will be mapped to quantiles of the normal distribution.
+
+Rather expressing the regression in terms of the residual standard deviation, it is easier to think of it in terms of $R^2$. In the final model, the coefficients are scaled so that final model has the appropriate $R^2$.
+
+In particular, the residual standard deviation is set to
+
+$$ \sqrt{ \left ( \frac{1}{K}\sum_{k \in \text{parents}} a_k^2 \right ) \left ( \frac{1}{R^2} - 1 \right ) } .$$
+
+Here, $K$ is the number of parents and $k$ is an index that ranges over the parent variables. The $a_k$ are the discriminations (regression weights) input through the system and $R^2$ is the selected $R^2$ value. The $1/K$ scale factor is set so that if all of the parent variables have an SD of 1, and all of the coefficients are 1, the child variable has a marginal SD of 1 as well.
+
+Finally, the intercept column represents a shift in the mean of the distribution relative to the parents. Positive values mean that more people in the population have this skill relative to the parents, and negative values mean fewer.
+
+```{r normal1}
+#| eval: false
+CP1 <- PnetFindNode(CM1,"CP1")
+gadget2 <- MakeRegressionGadget(CP1)
+shiny::shinyApp(gadget2$ui,gadget2$server, options(height=2000))
+```
+
+The resulting gadget is in: <https://pluto.coe.fsu.edu/rdemos/Peanut/EASD_CP1.Rmd>.
+
+### Columns in the Omega Matrix
+
+In this model, `EASD` and the three domain knowledge variables `DK1`, `DK2` and `DK3` are considered ancestral nodes. The three science practices skills all have `EASD` as a parent. The other A-parameters (discriminations/slopes) are not needed.
+
+![Omega Matrix Parameters](images/OmegaA.png){#fig-OmegaA}
+
+Overall, the columns in the $\Omega$-matrix are as follows:
+
+-   `Node` -- The name of the nodes in the competency model. The order is important, generally, the parents of a given node should come before the child nodes in the sequence.
+
+-   *NodeNames* -- The names of the nodes appear also in the columns, in the same order as the first column. The cells here provide check boxes for the edges. Note that the diagonal is not used.
+
+-   `Link` -- The link function used (see next section). Note that currently the `normalLink` is the only available choice for the $\Omega$-matrix.
+
+-   `Rules` -- The combination function used (see next section). The choice of `Compensatory` gives the discrete regression model.
+
+-   `R2` -- The $R^2$ is the measure of how much of the variance of the child variable can be explained by the parents.
+
+-   `A.`*NodeName* -- There is one column here for each node. This gives the slope/discrimination value for that node.
+
+-   `Intercept` -- The intercept for the regression; positive is the child skill is more prevalent in the population than the parent skills, and negative if it is less prevalent. Note this is a negative difficulty parameter.
+
+-   `PriorWeight` -- Used in Bayesian parameter updating, the prior parameter values are assigned the equivalent weight as this many observations.
+
+## $Q$-matrix {#sec-Q}
+
+The two warehouses give us the basic definitions of the networks and the nodes. The next step is to describe the relationships among the nodes and the conditional probability tables that are defined.
+
+@matrix2 divides this into two pieces: the $Q$-matrix which describes the relationship between the competency nodes and the observable outcomes, and the $\Omega$ matrix which describes the relationship among the competency variables (Section @sec-Omega). The dynamic model needs a third component in the growth model (Section @sec-growth).
+
+### Representing Structure
+
+The $Q$-matrix is the place to start. @tatsuoka1983 popularized the use of a matrix $Q$ to represent the cognitive structure of an assessment, where the rows represent items (or in the case of more complex assessment observable variables) and the columns represent *attributes*. Tatsuoka used the term attribute to emphasize the duality between the cognitive skill possessed by the subjects and the items which demand that skill. Tatsuoka's rule space model regarded the attributes as binary, but the notation works equally well if the cognitive variables are ordinal or scale.
+
+There is a simple relationship between the $Q$-matrix and the Bayesian network. If an element $q_{jk}=1$, then there is an edge between Competency Variable $k$ and Observable Variable $j$ in the corresponding evidence model. For every observable variable, the parents can be determined by looking across the row to find all cell entries with a one.
+
+![Q-matrix in the Spreadhseet](img/QmatInSheet.png){#fig-Q1}
+
+Note that the first two columns are `Model` and `Node`. The *Variables* nodes in the models *DK1_SP1*, *DK1_SP2*, and *DK1_SP3* are different variables. In particular, they have different entries in the $Q$-matrix. All of them use *CP1* (the Variable identification skill), but they use different areas of domain knowledge ( *DK1*, *DK2*, and *DK3* ). As reflected in the spreadsheet.
+
+Note also that in the spreadsheet the cells of the $Q$-matrix is represented with check boxes. This emphasizes the idea that checking the box is showing that skill referenced in the column is needed for the observable node referenced in the row.
+
+The Bayes net structure (for the evidence models) follows directly from the $Q$-matrix. The parents for the observable variables are the nodes (in the competency model) that correspond to the checked columns in the $Q$-matrix.
+
+### Defining Conditional Probability Tables.
+
+In addition to the graphical structure, a conditional probability table for each node, given its parents must be specified. Lou DiBello pressed some models from item response theory (IRT) into service to provide a language for describing relationships using the familiar psychometric parameters "difficulty" and "discrimination" [@bninea].
+
+#### The DiBello Framework
+
+The DiBello method has three steps:
+
+1.  Map the states of the parent variable onto a unit normal $\theta$ scale. Let $\theta_{k,s_{k,m}}$ be the numeric value associated with the Parent Variable $S_k$ being in State $s_{k,m}$.
+
+2.  Combine the parent $\theta$ values into a single variable using combination *Rules*. This yields a single set of effective $\theta$ values for each combination of the parent variables. Let $\eta_{j,c}(\theta_1, \ldots, \theta_K)$ be the function which calculates this effective theta for observable $Y_j$ associated with the transition between State $c-1$ and State $c$ for the child variable. (In the simple cases below, $\eta_{j,c}(\cdot)$ has the same functional form for all $c$, but possibly different values of the parameters.)
+
+3.  Change the effective $\theta$s into conditional probabilities using a *Link* function. Let $g_j(\eta_{j,1},\ldots,\eta_{j,C})$ be the link function.
+
+The setup is similar in many ways to generalized linear models, where $\eta(\cdot)$ takes the place of the linear predictor. (The method allows non-linear functions, but favors monotonic combination functions.)
+
+The first step was already done in the "Nodes" sheet, as the `NodeValues` column provides the values. Note that the chosen values of $[1, 0, -1]$ are close to the midpoints (with respect to the normal distribution) of three equal probability intervals, which would be $[.97, 0, -.97]$.
+
+For the last step, the `partialCredit` link function is chosen (see the last column of @fig-Q1). This is the most flexible of the currently available link functions, as it allows for a different probability to transition from `NoCredit` to `Partial` credit, and `Partial` credit to `Full` credit. Note that in general, the link function needs to address the transitions between states and not the states themselves.[^1]
+
+[^1]: Link functions are represented as actual functions in the CPTtools package [@CPTtools]. The currently supported link functions are `partialCredit`, `gradedResponse` and `normalLink`. The system is extendable.
+
+Finally, the combination rule is chosen in consultation with the task designers and subject matter experts. The `Offset-Conjunctive` rule states that all skills are necessary for solving the problem so that performance will be dominated by the weakest skill.[^2]
+
+[^2]: Combination functions are also implemented as functions in the CPTtools package. The currently recommended functions are `Compensatory`, `Offset-Conjunctive` and `Offset-Disjunctive`.
+
+#### Models for Dichotomous Variables
+
+The combination rules come in two patterns, the linear combination, multiple-discrimination, or multiple-$a$ pattern, and the offset, multiple-difficulty, or multiple-$b$ pattern. The `Offset-Conjuctive` rule uses the second pattern.
+
+Consider an observable, $Y_{j}$ with two possible states (0 and 1) and with a single parent. Then the combination function takes the form: $$ \eta_{j,1} (\theta_1) = a_{j,1}\theta_1 - b_{j,1}\; .$$
+
+The parameter $b$ is a negative intercept, known as a *difficulty*. However, a better name might be *demand*, as it describes how much of the corresponding skill is needed to have a good chance (above 50%) of answer the question.
+
+In generalizing this equation to more than one skill variable, the equation can either add additional discrimination (Multiple-$A$) or additional demand (Multiple-$B$) parameters. So the two most used combination rules are:
+
+*Compensatory* (Regression):
+
+$$ \eta_{j,1}(\theta_1,\ldots,\theta_{K_j}) =
+\frac{1}{\sqrt{K_j}} 
+\sum_{k} a_{j,k,1} \theta_{k} - b_{j,1} $$
+
+This is called the *compensatory* model as having more of one skill can compensate for less of another. The performance is controlled by the average of the skills.[^3]. The $a$'s are weight, describing the strength of influence of the skills towards the total.
+
+[^3]: The square root of $K$ factor is a variance stabilization constant, so that the variance of the effective effective theta does not increase as the number of skills increases.
+
+*Offset-Conjunctive* (Min):
+
+$$ \eta_{j,1}(\theta_1,\ldots,\theta_{K_j}) =
+a_{j,1}
+\min_{k} ( \theta_{k} - b_{j,k,1}) $$
+
+This is a conjunctive model, meaning all skills are necessary to solve the problem. There are now multiple $b$, as each one describes the demand for that particular skill in the task.
+
+#### Models for Ordered Categorical Variables
+
+One more extension of the model is needed because the observables in this model have three states and not two. Both the `gradedResponse` and `partialCredit` link functions are based on IRT models. Label the states of the observable (in this case, "No Credit", "Partial Credit", and "Full Credit") from 0 to $S_j$ in order of increasing desirability. It is assumed that all respondents will at least reach state 0. The partial credit model specifies the probability of reaching the next state given the respondent has reached the previous state. For $s>0$,
+
+$$ \Pr(X_j \ge s | X_j \ge s-1) = \text{logit}^{-1} \eta_{j,s}(\theta_1,\ldots,\theta_{K_j})\ .$$
+
+This is the partial credit model of @muraki1992.
+
+Consider the node *Variables* in the *DK1_SP1* model. In this example, the structure function has the same functional form for each transition, but it can have different parameters. Let the discrimination parameter $a_{j,1} = a_{j,2}=1$, which is a default value. (Values less than one would be appropriate if there was a reason to believe there is construct-unrelated variance in the response.) For the domain knowledge skill, *DK1*, assume that the amount of domain knowledge required to solve the problem is equivalent for both full and partial credit solutions. To model this, set $b_{j,2,1} = b{j,2,2} = 0$. The demand values should be treated as quantiles on a normal distribution scale: thus $b=0$ implies about 1/2 of the target population will have sufficient skill to have a 50/50 shot at completing the task. For the variable identification skill, *CP1*, assume that the transition from partial credit to full takes more skill than the transition from no to partial. In this case, setting $b_{j,1,1}=-.5$, $b_{j,1,2} = .5$ models this effect.
+
+### A graphical example
+
+```{r BuidEMs}
+#| include: false
+#| eval: false
+Q1 <- as.data.frame(read_sheet(sheetID,"Q"))
+Qmat2Pnet(Q1,Nethouse,Nodehouse)
+```
+
+```{r BuildGadget}
+#| eval: false
+EM <- WarehouseSupply(Nethouse,"DK1_SP2")
+Rel <- PnetFindNode(EM,"Relationships")
+gadget3 <- MakeDPCGadget(Rel)
+shiny::shinyApp(gadget3$ui,gadget3$server)
+```
+
+The gadget can be seen at <https://pluto.coe.fsu.edu/rdemos/Peanut/EASD_Relationships.Rmd>.
+
+### Columns in the Extended Q-matrix
+
+The first two columns in the $Q$-matrix sheet identify the variable.
+
+-   `Model`, `Node` -- The name of the model and node. Note that two variables with the same name (`Node` column) but different models are distinct.
+
+-   `NStates` -- Number of States the node has. This should agree with the Nodes sheet.
+
+-   `States` -- The names of all but one of the states. In general, probabilities are built for the transition between states. States are assume to be in decreasing order: (`High`, `Medium`, `Low`), so in the $Q$-matrix the state `High` refers to the transition from `Medium` to `High` and `Medium` refers to the transition from `Low` to `Medium`. It is assumed that all responses are at least `Low`, so no parameters are needed for the last state.
+
+-   `Link` -- The name of the link function. Currently supported are `partialCredit` and `gradedResponse`. There is limited support for `normalLink` as well.
+
+-   `LinkScale` -- An additional scale parameter (e.g., residual standard deviation) for the link function. Currently only the `normalLink` uses this. If supplied, it should be a positive number.
+
+-   $Q$-matrix proper (*NodeName*) -- Next, there are columns in the $Q$-matrix corresponding to the variables in the competency model. There is a check in the corresponding box if the observable referenced in the row depends on the competency variable in the column.
+
+-   `Rules` -- This is the name of the combination function that is used. Note that under the `partialCredit` link function, this can be either a single value or a distinct value for each state transition. (If a single value is given it is replicated out to the number of sites minus 1).
+
+There are two types of rules, which require different sets of parameters. *Multi-A Rules* (`Compensatory` and all `Conjuctive` and `Disjunctive`[^4]) have one discrimination ($A_p$) parameter for each parent variable, and a single difficulty/demand ($B$) parameter. *Multi-B Rules* (`OffsetConjunctive` and `OffsetDisjunctive`) have one demand parameter ($B_p$) for each parent variable, and a single discrimination (\$A%). Therefore different columns in the spreadsheet are used depending on the choice of rules.
+
+[^4]: The `Conjunctive` and `Disjunctive` rules are deprecated in favor of the `OffsetConjuctive` and `OffsetDisjunctive` rules, differing demands makes more sense than differening discrimination when `max()` and `min()` are used for dimension reduction.
+
+#### Multi-A Table Columns.
+
+These are regression-like models. There is one slope ($A_p$) for each parent variable, and a single intercept ($B$).
+
+-   `A.`*NodeName* -- is used to give the weight for the corresponding parent variable. This should be left blank if the column is not a parent variable (not checked in the $Q$-matrix).
+
+-   `B` -- Difficulty/demand. The `B` column without a variable name attached is used to specify the overall difficulty of the item.
+
+In each case there can be a single value, or a list of values corresponding to the state transitions.
+
+There are some additional rules depending on the link function.
+
+-   `partialCredit` -- no restrictions on the parameters. Some discriminations can be 0 or missing to indicate that a particular parent variable has no role in that transition.
+
+-   `gradedResponse` -- This model requires parameter restrictions to prevent negative probabilities. In particular, there must be one difficulty ($B$) parameter for each transition and they must be non-increasing. Although it is possible to have multiple discrimination parameters, restricting the discrimination parameters to be the same for every level ensures there will be no negative probabilities.
+
+-   `normalLink` -- This link function requires a single set of parameters for all state transitions. (It also requres the `LinkScale`).
+
+#### Multi-B Parameters
+
+The `OffsetConjunctive` and `OffsetDisjunctive` models use `min()` and `max()` respectively to collapse from the $p$ dimensions of the parents to the single dimension of the child. There is one offset parameter ($B_p$), a difficulty or a demand, for each parent. There is only a single discrimination ($A$).
+
+-   `A` -- Discrimination (slope). The `A` column without a variable name attached is used to specify the overall discrimination of the item.
+
+-   `B`._NodeName_ -- There is a demand parameter for each relevant (box checked in the $Q$-matrix) competency variable.
+
+In each case there can be a single value, or a list of values corresponding to the state transitions.
+
+There are some additional rules depending on the link function.
+
+-   `partialCredit` -- no restrictions on the parameters. Some discriminations can be infinite or missing to indicate that a particular parent variable has no role in that transition.
+
+-   `gradedResponse` -- Each difficulty parameter should be a non-increasing series. Again, is safest to use a common discrimination parameter for all transitions.
+
+-   `normalLink` -- Again, a single set of parameters for all transitions is used here.
+
+Finally, the last column in the spreadsheet for both multi-$A$ and multi-$B$ rules is the `PriorWeight`. This has the same interpretation as it does in the $\Omega$-matrix.
+
+## Statistics
+
+After student specific evidence, the Bayesian network contains the posterior distribution over the possible skill states for the student based on both the prior (population) model and the observed evidence.  Rather than look at the full posterior distribution, usually the Bayesian networks outputs certain statistics of the posterior distribution.  Most of these are focused on a single node.
+
+The currently supported statistics are:
+
+* `PnodeMargin` -- This returns the marginal posterior probability for the node.  It is a vector (simplex) over the states of the node.
+
+* `PnodeMode` -- The state of the node that has the highest marginal probability.  (Value is a character scalar).
+
+* `PnodeMedian` -- (Assumes states are ordered).  The state of the node which is associated with cumulative probability of .5.  (Values is a character scalar).
+
+The next two statistics assume that real values have been assigned to the states, making it a random variable.
+
+* `PnodeEAP` -- The expected a posterior value or posterior mean for the random variable's marginal distribution.
+
+* `PnodeSD` -- The standard deviation of the marginal distribution of the random variable.
+
+![Statistics Table](images/Statistics.png)
+
+## Growth {#sec-growth}
+
+The growth model is based on a birth-and-death Poisson process. There are two parameters, $\lambda$, the rate at which students transition to the next stage in the learning progression (birth or growth rate) and, $\mu$, the rate at which they translate to the next lower state (death or decline rate).
+
+To simplify the model, only the previous value of the target competency at the starting time is considered, cross correlations are not considered. As a further simplification, the growth and decline rates are the same for each transition between stages. (This is not a unreasonable in the decline, which is probably uniform across levels, but it is easy to imagine instruction which would be more effective for students are certain stages.)
+
+The parameters $\lambda$ and $\mu$ only give the transitions between adjacent stages. To go from Stage 1 and 3 the student would need to make two transitions, so the rate is $\lambda^2$. The rate matrix then looks like:
+
+$$ 
+\Lambda = 
+\left ( 
+  {\begin{array}{ccc}
+      0 & \lambda & \lambda^2 \\
+      \mu & 0 & \lambda \\
+      \mu^2 & \mu & 0 \\
+  \end{array}}
+\right ) \ .
+$$
+
+To convert these numbers to a probability, they need to get the Poisson transformation, and then be normalized. First, let \$\tilde{ \Pi} = \Lambda t e\^{-\Lambda t} \$, where all calculations are done element-wise. Next, normalize each row by setting \$\pi\_{ii} = 1 - \sum\_j \tilde{\pi_{ij}}, and letting $\pi_{ij} = \tilde{\pi_{ij}}$ for the off-diagonal cells. (Note that because the diagonal of $\Lambda$ is 0, $\tilde{\pi_{ii}} = 0$, so it does not contribute to the normalization sum.
+
+In general, the growth ($\lambda$) and decline ($\mu$) parameters, will depend on what kind of instruction is given.  The assumption here is that there are three possibilities:  _Variable Focused Activity_, _Relationship Focused Activity_, and _Follow-up Focused Activity_.  The assumption is that growth in the variable (_CP1_ -- Variables, _CP2_ -- Relationships, or _CP3_ -- Follow-up) matching the instructional focus will be greater.  The growth model sheet shows this below.
+
+![Growth Model Sheet](img/GrowthModelsSheet.png)
+The corresponding growth models are:
+
+```{r calcLearnForget}
+#| echo: FALSE
+#| include: FALSE
+#' Calculates e^(-Lambda*t), where Lambda is a matrix.
+#'
+#' @param Lambda a square matrix of rates
+#' @param t a time parameter (default 1).
+#' @returns A matrix of the same shape as Lambda
+eLt <- function (Lambda, t=1.0) {
+  r <- eigen(Lambda)
+  V <- r$vectors
+  lam <- r$values
+  V %*% diag(exp(-lam*t)) %*% solve(V)
+}
+
+#' Creates a transition probability matrix from the rate and time.
+#'
+#' @param Lambda a square matrix of transition rates -- the diagnoal is ingored.
+#' @param t A time.
+#' @returns a square matrix of transition probabilities for a time interval of size t.
+poissonMat <- function(Lambda, t=1.0) {
+  mat <- t*Lambda %*% eLt(Lambda,t)
+  diag(mat) <- 0
+  diag(mat) <- 1 - rowSums(mat)
+  mat
+}
+
+#' Creates a transition rate matrix from a big a list of learning and forgetting rates.
+#'
+#' The `learn` parameter is the subdiagonal in the high-first orientation, and the `forget`
+#' parameter is superdiagonal.  Thus, their lengths should be the rank of the matrix minus one.
+#' As a special case, if the length is 1, then it will be replicated to the rank-1.
+#'
+#' States should be list of labels for the states.  If not supplied, it will be generated from the
+#' based on the length of `learn` (or `forget`).
+#'
+#' @param learn A vector of learning rates.  Should be one less than number of states.
+#' @param forget A vector of forgetting rates.  Should be one less than the number of states.
+#' @param states A list of names for the states.
+#' @param highFirst A logical value (default true) indicating whether the first state is the highest or lowest value in the sequence.
+#' @returns A square matrix with the transition rates.
+learnForgetRate <- function (learn, forget=0, states, highFirst=TRUE) {
+  if (missing(states)) {
+    K <- max(length(learn),length(forget))
+    if (highFirst)
+      states <- paste("Stage",K:0,sep="")
+    else
+      states <- paste("Stage",0:K,sep="")
+  } else {
+    if (!is.character(states))
+      stop("Expected character vector for states argument.")
+  }
+  K <- length(states)
+  if (!is.numeric(learn) && all(learn >= 0)) {
+    stop ("Expected learn to be positive numbers, got ",learn)
+  }
+  if (!is.numeric(forget) && all(forget >=0)) {
+    stop ("Expected forget to be positive numbers, got ",forget)
+  }
+  if (length(learn)==1L) learn <- rep(learn,K-1)
+  if (length(forget)==1L) forget <- rep(forget,K-1)
+  if (length(learn) != K-1L || length(forget) != K-1L) {
+    stop("Length of learn and forget must be length(states) -1, or 1")
+  }
+  if (highFirst) {
+    super <- forget; sub <- learn
+  } else { ## Do I need this rev?
+    super <- learn; sub <- forget
+  }
+  ratem <- matrix(Inf,K,K,dimnames=list(states,states))
+  for (i in 1L:K) {
+    if (i > 1L) {
+      for (j in 1:(i-1L)) {
+        ratem[i,j] <- prod(sub[j:(i-1L)])
+      }
+    }
+    if (i < K-1L) {
+      for (j in (i+1L):K) {
+        ratem[i,j] <- prod(sub[i:(j-1L)])
+      }
+    }
+  }
+  ratem
+}
+
+```
+
+```{r Focus}
+#| label: tab-focus
+#| tbl-cap: "Transition matrix for focal activity."
+CP1 <- PnetFindNode(CM1,"CP1")
+knitr::kable(learnForgetRate(.4,.01, PnodeStates(CP1)))
+```
+
+```{r Other}
+#| label: tab-unfocus
+#| tbl-cap: "Transition matrix for non-focal activities."
+CP1 <- PnetFindNode(CM1,"CP1")
+knitr::kable(learnForgetRate(.4,.01,PnodeStates(CP1)))
+```
+
