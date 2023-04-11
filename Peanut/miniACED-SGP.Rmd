@@ -1,0 +1,35 @@
+---
+title: "MiniACED:  Ancestral Node Solve Geometric Problems"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(shiny)
+library(shinyjs)
+library(PNetica)
+library(Peanut)
+library(googlesheets4)
+```
+
+```{r LoadModel, include=FALSE}
+sess <- RNetica::NeticaSession() # Add the license key here
+RNetica::startSession(sess)
+sheetID <- "1t4ZPfeNmSFXm4ejQPjdGri8_U8VkEsR9mwKwE1AM0p4"
+googlesheets4::gs4_deauth()
+netman <- read_sheet(sheetID,"Nets")
+Nethouse <- PNetica::BNWarehouse(netman,sess)
+nodeman <- read_sheet(sheetID,"Nodes")
+Nodehouse <- PNetica::NNWarehouse(nodeman,sess)
+omega <- as.data.frame(read_sheet(sheetID,"Omega"))
+CM <- WarehouseSupply(Nethouse,"miniACEDPM")
+CM1 <- Omega2Pnet(omega,CM,Nodehouse,override=TRUE)
+SGP <- PnetFindNode(CM1,"SolveGeometricProblems")
+BuildTable(SGP)
+```
+<style>iframe.shiny-frame{height: 2000px}</style>
+```{r gadget, echo=FALSE}
+gadget1 <- MakeRegressionGadget(SGP)
+shiny::shinyApp(gadget1$ui,gadget1$server,options(height=2000))
+```

@@ -1,0 +1,44 @@
+---
+title: "MiniACED:  Observable Node isCorrect"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(shiny)
+library(shinyjs)
+library(PNetica)
+library(googlesheets4)
+```
+
+```{r LoadModel, include=FALSE}
+sess <- RNetica::NeticaSession() # Add the license key here
+RNetica::startSession(sess)
+sheetID <- "1t4ZPfeNmSFXm4ejQPjdGri8_U8VkEsR9mwKwE1AM0p4"
+googlesheets4::gs4_deauth()
+netman <- read_sheet(sheetID,"Nets")
+knitr::kable(netman)
+Nethouse <- PNetica::BNWarehouse(netman,sess)
+nodeman <- read_sheet(sheetID,"Nodes")
+Nodehouse <- PNetica::NNWarehouse(nodeman,sess)
+omega <- as.data.frame(read_sheet(sheetID,"Omega"))
+CM <- WarehouseSupply(Nethouse,"miniACEDPM")
+CM1 <- Omega2Pnet(omega,CM,Nodehouse,override=TRUE)
+Q1 <- as.data.frame(read_sheet(sheetID,"Q"))
+try(Qmat2Pnet(Q1,Nethouse,Nodehouse))
+```
+
+```{r kludge, include=FALSE}
+EM1 <- WarehouseSupply(Nethouse,"TableExtendMedEM")
+isC <- PnetFindNode(EM1,"isCorrect")
+# PnodeAlphas(Rel) <- list(1,1)
+# PnodeBetas(Rel) <- 
+#   list(Full=c(CP2=.5,DK1=0),Partial=c(CP2=-.5,DK1=0))
+BuildTable(isC)
+```
+<style>iframe.shiny-frame{height: 2000px}</style>
+```{r gadget, echo=FALSE}
+gadget3 <- MakeDPCGadget(isC)
+shiny::shinyApp(gadget3$ui,gadget3$server, options(height=2000))
+```

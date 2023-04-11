@@ -1,0 +1,34 @@
+---
+title: "MiniACED:  Proficiency Node Common Ratio"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(shiny)
+library(shinyjs)
+library(PNetica)
+library(googlesheets4)
+```
+
+```{r LoadModel, include=FALSE}
+sess <- RNetica::NeticaSession() # Add the license key here
+RNetica::startSession(sess)
+sheetID <- "1t4ZPfeNmSFXm4ejQPjdGri8_U8VkEsR9mwKwE1AM0p4"
+googlesheets4::gs4_deauth()
+netman <- read_sheet(sheetID,"Nets")
+Nethouse <- PNetica::BNWarehouse(netman,sess)
+nodeman <- read_sheet(sheetID,"Nodes")
+Nodehouse <- PNetica::NNWarehouse(nodeman,sess)
+omega <- as.data.frame(read_sheet(sheetID,"Omega"))
+CM <- WarehouseSupply(Nethouse,"miniACEDPM")
+CM1 <- Omega2Pnet(omega,CM,Nodehouse,override=TRUE)
+CR <- PnetFindNode(CM1,"CommonRatio")
+BuildTable(CR)
+```
+<style>iframe.shiny-frame{height: 2000px}</style>
+```{r gadget, echo=FALSE}
+gadget2 <- MakeRegressionGadget(CR)
+shiny::shinyApp(gadget2$ui,gadget2$server,options(height=2000))
+```
