@@ -1,0 +1,134 @@
+---
+title: "Measurement & Statistics 3-year plan"
+author: "Russell Almond"
+date: "2023-06-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## About this Schedule
+
+For the purposes of planning, we (the Measurement & Statistics faculty) put together a 3-year plan of what courses we will be offering.  There is, however, uncertainty associated with these plans.  In particular, the farther out in time, the more likely that there will be changes.  Hopefully, it should be good enough for planning.
+
+```{bash}
+curl https://pluto.coe.fsu.edu/CourseLists/MandSThreeYearPlan.xlsx > MandS3YearPlan.xlsx
+
+```
+
+```{r grabSchedule, echo=FALSE}
+
+schedule <- readxl::read_xlsx("MandS3YearPlan.xlsx","Plan")
+faculty <- readxl::read_xlsx("MandS3YearPlan.xlsx",2)
+courses <- readxl::read_xlsx("MandS3YearPlan.xlsx","courses")
+semesterName <- unique(paste(schedule$Semester,schedule$Year))
+
+```
+
+## Three Year Plan {.tabset .tabset-pill}
+
+### `r semesterName[1]`
+
+```{r echo=FALSE}
+i <- 1
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+
+### `r semesterName[2]`
+
+```{r echo=FALSE}
+i <- 2
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[3]`
+```{r echo=FALSE}
+i <- 3
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[4]`
+```{r echo=FALSE}
+i <- 4
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[5]`
+```{r echo=FALSE}
+i <- 5
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[6]`
+```{r echo=FALSE}
+i <- 6
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[7]`
+```{r echo=FALSE}
+i <- 7
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[8]`
+```{r echo=FALSE}
+i <- 8
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+### `r semesterName[9]`
+```{r echo=FALSE}
+i <- 9
+schedule %>% filter(Semester==Semester[i],Year==Year[i])
+```
+
+## Course Descriptions
+
+## Faculty
+
+Tenure line faculty:
+
+* _Russell Almond_
+* _Huan (Hailey) Kuan_
+* _Yanyun Yang_
+* _Qian (Jackie) Zhang_. (pronounced "Chyan Jang")
+
+Adjuncts:
+
+* _Salih Binichi_
+* _Suleyman Olgar_
+* _Ying Zhang_ 
+* _Ambiguatus Staff_ -- This prolific instructor is well versed in skills, however, he always manages to bow out to be replaced with somebody else before the class starts.
+
+## Courses
+
+EDF5400	Des/Inf Statistics Apps 
+EDF5401	Gen Linear Models Apps 
+EDF5402	Adv Topics in ANOVA 
+EDF5404	Bayesian data analysis
+EDF5406	Multivariate Analysis Apps 
+EDF5409	Causal Modeling
+EDF5432	Measurement Theory I 
+EDF5434	Measurement Theory II
+EDF5435	Scaling and Equating
+EDF5448	Scale and Instrument Development
+EDF5484	Ed Data Analysis
+EDF7418	Multilevel Modeling
+EDF7489	Meta-analysis
+EDF6937	Seminar: Adv Structural equation modeling
+EDF6937	Seminar: Educational Data Mining
+EDF6937	Seminar: Longitudinal data analysis
+EDF6937	Seminar: Mediation and Moderation
+EDF5419	Missing Data Analysis
+EDF5922	Ed Psych Colloquium
+
+
+## Questions
+
+
+
