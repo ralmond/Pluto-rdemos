@@ -194,22 +194,31 @@ inputPanel(
   sliderInput("difficultyGR3", label = "Difficulty X \u2264 2",
               min=-3.0, max=3.0, value=0, step=.1),
   sliderInput("difficultyGR4", label = "Difficulty X \u2264 3",
-              min=-3.0, max=3.0, value=0, step=.1)
+              min=-3.0, max=3.0, value=0, step=.1),
+  sliderInput("masterGR", label = "Mastery Point",
+              min=-3.0, max=3.0, value=0, step=.1)  
 )
 
 renderPlot({
-  c <- as.numeric(input$guessing4)
-  d <- as.numeric(input$slipping4)
- curve(c+(1-c-d)*invlogit(1.7*input$discrimination4*(
-   x-input$difficulty4)),xlim=c(-3.25,3.25),
-   ylab="Probability of Success", xlab="Ability",
-   main=paste("IRT Curve; difficulty = ",
-              input$difficulty4,
-              ", discrimination =", input$discrimination4,
-              ", guessing=",input$guessing4,", slipping=",input$slipping4),
+  b <- numeric(4)
+  b[1] <- as.numeric(input$difficultyGR1)
+  b[2] <- as.numeric(input$difficultyGR2)
+  b[3] <- as.numeric(input$difficultyGR3)
+  b[4] <- as.numeric(input$difficultyGR4)
+  k <- as.numeric(input$k) -1
+
+ curve(invlogit(1.7*input$discriminationGR*(
+   x-b[1])),xlim=c(-3.25,3.25),
+   ylab="Probability of exceeding threshold", xlab="Ability",
+   main=paste("IRT Curve; difficulties = ",
+              paste("(",paste(b[1:k],collapse=", "),")"),
+              ", discrimination =", input$discriminationGR),
    ylim=c(0,1))
- abline(v=input$master4)
-              
+ if (k>1) {
+   for (kk in 2:k) 
+     curve(invlogit(1.7*input$discriminationGR*(x-b[kk])),add=TRUE)
+ }
+ abline(v=input$masterGR)
 })
 
 
@@ -217,6 +226,67 @@ renderPlot({
 
 
 ## Generalized Partial Credit Model
+
+```{r GPC, echo=FALSE}
+
+inputPanel(
+   selectInput("kk",label="Number of Categories",
+               choice=2:5, selected=3),
+   sliderInput("masterGPC", label = "Mastery Point",
+               min=-3.0, max=3.0, value=0, step=.1),  
+   p("0 \u27B5 1"), 
+   sliderInput("discriminationGPC1", label = "Discrimination 0 \u27B5 1:",
+                min = 0.05, max = 2, value = 1, step = 0.05),
+   sliderInput("difficultyGPC1", label = "Difficulty  0 \u27B5 1",
+                min=-3.0, max=3.0, value=0, step=.1),
+   p("1 \u27B5 2"), 
+   sliderInput("discriminationGPC2", label = "Discrimination 1 \u27B5 2:",
+               min = 0.05, max = 2, value = 1, step = 0.05),
+   sliderInput("difficultyGPC2", label = "Difficulty 1 \u27B5 2",
+               min=-3.0, max=3.0, value=0, step=.1),
+   p("2 \u27B5 3"), 
+   sliderInput("discriminationGPC3", label = "Discrimination 2 \u27B5 3:",
+               min = 0.05, max = 2, value = 1, step = 0.05),
+   sliderInput("difficultyGPC3", label = "Difficulty 2 \u27B5 3",
+               min=-3.0, max=3.0, value=0, step=.1),
+   p("3 \u27B5 4"), 
+   sliderInput("discriminationGPC4", label = "Discrimination 3 \u27B5 4:",
+               min = 0.05, max = 2, value = 1, step = 0.05),
+   sliderInput("difficultyGPC4", label = "Difficulty 3 \u27B5 4",
+               min=-3.0, max=3.0, value=0, step=.1)
+
+)
+
+renderPlot({
+  b <- numeric(4)
+  a <- numeric(4)
+  b[1] <- as.numeric(input$difficultyGPC1)
+  b[2] <- as.numeric(input$difficultyGPC2)
+  b[3] <- as.numeric(input$difficultyGPC3)
+  b[4] <- as.numeric(input$difficultyGPC4)
+  a[1] <- as.numeric(input$discriminationGPC1)
+  a[2] <- as.numeric(input$discriminationGPC2)
+  a[3] <- as.numeric(input$discriminationGPC3)
+  a[4] <- as.numeric(input$discriminationGPC4)
+  k <- as.numeric(input$kk)
+  
+  theta <- seq(-3.25,3.25,.05)
+  
+  eta <- sweep(outer(b,theta,"-"),1,a,"*")
+  eeta <- exp(apply(rbind(0,eta),2,cumsum))
+  cc <- apply(eeta[1:k,],2,sum)
+  probs <- sweep(eeta[1:k,],2,cc,"/")
+
+  matlines(matrix(theta,ncol=1),t(probs),
+   ylab="Probability of Success", xlab="Ability",
+   main=paste("Generalized Partial Credit"))
+  abline(v=input$masterGPC)
+              
+})
+
+
+```
+
 
 ## Unfolding Model
 
