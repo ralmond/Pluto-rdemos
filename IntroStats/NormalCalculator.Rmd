@@ -31,7 +31,9 @@ inputPanel(
 
 renderPlot({
   q <- input$z
-  p <- switch(input$tails,
+  mde <- input$tails
+  if (length(mde) != 1L) mde <- "both"
+  p <- switch(mde,
               upper=1-pnorm(q),
               lower=pnorm(q),
               both=2*pnorm(-abs(q)),
@@ -40,7 +42,7 @@ renderPlot({
   curve(dnorm(x),main=paste("Probability of shaded region = ",round(p,3)),
         sub=paste("z = ",round(q,3)),
         xlim = c(-xl,xl),yaxt="n",cex=3,cex.lab=2,cex.main=2,ylab="",xlab="z")
-  switch(input$tails,
+  switch(mde,
          upper={
            cord.xu <- c(q,seq(q,xl,0.01),xl)
            cord.yu <- c(0,dnorm(seq(q,xl,0.01)),0)
@@ -94,7 +96,9 @@ inputPanel(
 
 renderPlot({
   pp <- input$p
-  q <- switch(input$tails1,
+  mde <- input$tails1
+  if (length(mde) != 1L) mde <- "both"
+  q <- switch(mde,
               upper=qnorm(1-pp),
               lower=qnorm(pp),
               both=qnorm(1-pp/2),
@@ -103,7 +107,7 @@ renderPlot({
   curve(dnorm(x),main=paste("Probability of shaded region = ",round(pp,3)),
         sub=paste("z = ",round(q,3)),
         xlim = c(-xl,xl),yaxt="n",cex=3,cex.lab=2,cex.main=2,ylab="",xlab="z")
-  switch(input$tails1,
+  switch(mde,
          upper={
            cord.xu <- c(q,seq(q,xl,0.01),xl)
            cord.yu <- c(0,dnorm(seq(q,xl,0.01)),0)
