@@ -87,9 +87,11 @@ inputPanel(
 
 renderPlot({
     ## Draw random data 
+    nn <- input$nn
+    if (length(nn) != 1L) nn <- 100
     kdat <- lapply(names(key), function (k) {
     x <-do.call(distlist[[key[k]]][[kdist[k]]],
-                list(input$nn))
+                list(nn))
       scale(x,(min(x)+max(x))/2,(max(x)-min(x)))*100+50
   })
   names(kdat) <- names(key)
@@ -114,7 +116,7 @@ h4("Answers:\n")
 renderTable({
   answer <- sapply(names(key),
    function (k) {
-      if (input[[k]]=="unknown") {
+      if (length(input[[k]]) != 1L || input[[k]]=="unknown") {
         "Make your selection.\n"
       } else {
         paste(ifelse(input[[k]]==key[k],
