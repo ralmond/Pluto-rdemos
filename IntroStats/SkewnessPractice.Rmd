@@ -86,7 +86,7 @@ renderPlot({
     if (length(nn) != 1L) nn <- 100
     kdat <- lapply(names(key), function (k) {
     x <-do.call(distlist[[key[k]]][[kdist[k]]],
-                list(input$nn))
+                list(nn))
       scale(x,(min(x)+max(x))/2,(max(x)-min(x)))*100+50
   })
   names(kdat) <- names(key)
@@ -142,12 +142,12 @@ Here are the other exercises in this series:
 
 * Skewness Practice:
    + [Histograms](SkewnessPractice.Rmd)
-   + [Boxplots](SkewnessBoxplots.Rmd)
+   + [Boxplots](SkewnessBoxplot.Rmd)
    + [Q-Q Plots](SkewnessQQ.Rmd)
 
 * Kurtosis Practice:
    + [Histograms](KurtosisPractice.Rmd)
-   + [Boxplots](KurtosisBoxplot.Rmd)
+   + [Boxplots](KurtosisBoxplots.Rmd)
    + [Q-Q Plots](KurtosisQQ.Rmd)
    
 

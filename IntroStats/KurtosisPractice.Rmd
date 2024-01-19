@@ -91,7 +91,7 @@ renderPlot({
     if (length(nn) != 1L) nn <- 100
     kdat <- lapply(names(key), function (k) {
     x <-do.call(distlist[[key[k]]][[kdist[k]]],
-                list(input$nn))
+                list(nn))
       scale(x,(min(x)+max(x))/2,(max(x)-min(x)))*100+50
   })
   names(kdat) <- names(key)
